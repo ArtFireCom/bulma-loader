@@ -1,36 +1,46 @@
-var loaderUtils = require('loader-utils');
-var path = require('path');
-var fs = require('fs');
+const fs = require("fs");
+const loaderUtils = require("loader-utils");
+const path = require("path");
+const validateOptions = require("schema-utils");
 
-var bulmaPattern = /node_modules\/bulma\/.+sass$/;
+const bulmaPattern = /node_modules\/bulma\/.+sass$/;
 
-module.exports = function (source) {
-  if (this.cacheable) this.cacheable();
-  var callback  = this.async();
-  
+const schema = {
+  type: 'object',
+  properties: {
+    theme: {
+      type: 'string'
+    }
+  }
+}
+
+function bulmaLoader(source) {
+  const self = this;
+  const callback = self.async();
+
+  const options = loaderUtils.getOptions(self);
+  validateOptions(schema, options, 'Bulma Loader');
+
   // Only act on bulma sass imports
-  if(!bulmaPattern.test(this.resourcePath)) {
+  if (!bulmaPattern.test(self.resourcePath)) {
     return callback(null, source);
   }
-  
-  var config = loaderUtils.getLoaderConfig(this, 'bulmaLoader');
-  var themeName = config.theme;
-  
-  if (!themeName) {
-    return callback(new Error('No `theme` specified in the bulma-loader options! See: https://github.com/stipsan/bulma-loader#usage'))
-  }
-  
-  var themePath = path.resolve(themeName);
 
-  var themeExists = fs.existsSync(themePath);
+  const themePath = path.resolve(options.theme);
+  const themeExists = fs.existsSync(themePath);
   if (!themeExists) {
     return callback(new Error(`The path ${themePath} does not exist!`))
   }
 
-  this.addDependency(themePath);
+  self.dependency(themePath);
 
   fs.readFile(themePath, "utf-8", function(err, theme) {
-    if(err) return callback(err);
+    if (err) {
+      return callback(err);
+    }
+
     callback(null, theme + '\n' + source);
   });
 };
+
+module.exports = bulmaLoader;
